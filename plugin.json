@@ -3,7 +3,7 @@
   "name": "Dames",
   "version": "1.1.1",
   "author": "NDesumeur",
-  "description": "Des dames internationales (10 × 10) contre l'ordinateur ; la partie en cours est gardée.",
+  "description": "Le jeu de dames international (10 × 10) contre l'ordinateur, avec ses vraies règles : prise obligatoire en avant comme en arrière, rafle la plus longue, dames qui filent sur toute la diagonale, nulles par répétition. Sept niveaux du débutant au grand maître, coup annulable, notation officielle des coups, statistiques par niveau, et la partie en cours reprise même sur un autre PC.",
   "icon": "icon.png",
   "entry": "index.js",
   "view": "dames",
