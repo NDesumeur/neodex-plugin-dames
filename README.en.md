@@ -1,12 +1,13 @@
 # Dames (Draughts)
 
-International draughts, on a 10 × 10 board, against the computer. Seven levels, from beginner to grandmaster; the current game is kept and resumes where you left it, even on another PC.
+International draughts, on a 10 × 10 board, against the computer, in pixel art: a wooden board, raised men and kings that slide and jump over the pieces they take, with a "tock" on every move and a "clack" on every capture. Seven levels, from beginner to grandmaster; the current game is kept and resumes where you left it, even on another PC.
 
 *Version française : [README.md](README.md)*
 
 ## How to play
 
-- Click one of your pieces, then the destination square.
+- Click one of your pieces, then the destination square. Pieces that can move have small golden corners; possible squares are marked with a dot.
+- When a **capture is compulsory**, the header says so in orange, the pieces that must capture flash **orange** and the pieces they will take flash **red** (with a "!"). Once you pick a piece, only its prey stay red.
 - For a **multiple capture**, click the destination square directly; if several paths end on the same square, click the squares along the way one by one.
 - **Undo** takes back your last move (and the computer's reply).
 - **New game** starts over; the colour list chooses **I play white**, **I play black** or **Random colour**. White moves first.
@@ -27,7 +28,7 @@ Beginner, Easy, Medium, Hard, Expert, Master and Grandmaster. The first levels l
 
 ## During the game
 
-The **Moves** panel lists the game in official notation (squares numbered 1 to 50). The counter shows your men and kings and the computer's; the header shows your wins, draws and losses at the chosen level.
+The band above the board says whose turn it is, in big letters. The **Moves** panel lists the game in official notation (squares numbered 1 to 50, the numbers are written on the edge of the board). The counter shows your men and kings and the computer's; the header shows your wins, draws and losses at the chosen level.
 
 ## Data and sync
 

@@ -1,12 +1,13 @@
 # Dames
 
-Le jeu de dames international, sur un damier de 10 × 10, contre l'ordinateur. Sept niveaux, du débutant au grand maître ; la partie en cours est gardée et reprend où tu l'avais laissée, même sur un autre PC.
+Le jeu de dames international, sur un damier de 10 × 10, contre l'ordinateur, en pixel art : un damier en bois, des pions et des dames en relief qui glissent et bondissent par-dessus les pièces prises, avec un « toc » à chaque pose et un « clac » à chaque prise. Sept niveaux, du débutant au grand maître ; la partie en cours est gardée et reprend où tu l'avais laissée, même sur un autre PC.
 
 *English version: [README.en.md](README.en.md)*
 
 ## Comment jouer
 
-- Clique un de tes pions, puis la case d'arrivée.
+- Clique un de tes pions, puis la case d'arrivée. Les pions qui peuvent jouer ont de petits coins dorés ; les cases possibles sont marquées d'un point.
+- Quand une **prise est obligatoire**, l'en-tête le dit en orange, les pions qui doivent prendre clignotent en **orange** et les pièces qu'ils vont prendre en **rouge** (avec un « ! »). Une fois ton pion choisi, seules ses proies restent en rouge.
 - Pour une **rafle** (plusieurs prises d'un coup), clique directement la case d'arrivée ; si plusieurs chemins finissent sur la même case, clique les cases de passage une par une.
 - **Annuler** reprend ton dernier coup (et la réponse de l'ordinateur).
 - **Nouvelle partie** recommence ; la liste de couleur choisit **Je joue les blancs**, **Je joue les noirs** ou **Couleur au hasard**. Les blancs commencent.
@@ -27,7 +28,7 @@ Débutant, Facile, Moyen, Difficile, Expert, Maître et Grand maître. Les premi
 
 ## Pendant la partie
 
-Le panneau **Coups** liste la partie en notation officielle (cases numérotées de 1 à 50). Le compteur indique tes pions et dames et ceux de l'ordinateur ; l'en-tête montre tes victoires, nulles et défaites au niveau choisi.
+La bande en haut du damier dit à qui c'est le tour, en gros. Le panneau **Coups** liste la partie en notation officielle (cases numérotées de 1 à 50, les numéros sont écrits au bord du damier). Le compteur indique tes pions et dames et ceux de l'ordinateur ; l'en-tête montre tes victoires, nulles et défaites au niveau choisi.
 
 ## Données et synchronisation
 
