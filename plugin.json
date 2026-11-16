@@ -1,7 +1,7 @@
 {
   "id": "neodex.dames",
   "name": "Dames",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "author": "NDesumeur",
   "description": "Le jeu de dames international (10 × 10) contre l'ordinateur, en pixel art : damier en bois, pions et dames en relief qui glissent et bondissent, avec leurs sons. Les vraies règles : prise obligatoire en avant comme en arrière (les pions qui doivent prendre et leurs proies sont marqués), rafle la plus longue, dames qui filent sur toute la diagonale, nulles par répétition. Sept niveaux du débutant au grand maître, coup annulable, notation officielle des coups, statistiques par niveau, et la partie en cours reprise même sur un autre PC.",
   "icon": "icon.png",
