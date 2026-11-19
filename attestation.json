@@ -1,9 +1,9 @@
 {
   "pluginId": "neodex.dames",
   "repo": "NDesumeur/neodex-plugin-dames",
-  "version": "1.2.1",
-  "sha256": "cfbd816497f57d8f9de5777793ced16548af37d5273913a0458e68c820547be9",
-  "approvedAt": "2026-11-16T16:38:47.934Z",
+  "version": "1.2.2",
+  "sha256": "f954d85eaf800639b8e0f08be05967cea80f49bf7cd0e3a476c1dc6df0e4532d",
+  "approvedAt": "2026-11-19T23:26:42.180Z",
   "neobase": ">=4.0.0",
-  "signature": "oxtCq0gI4cV4+ZJ/S+ff/nP5UrSef6HSQKNVrsHKf73T/Xr4X54hW0BquSOmnJDRKW+bfCI+xxgvnFK9xAUfBg=="
+  "signature": "YzMzafOSIvis6BcRn9dO8F4cETNezKfuviknJ3EvMs0hMEpAlbaIp0hz8a1P76LIhKoMy//uEGiiVd7t4ETlCg=="
 }
