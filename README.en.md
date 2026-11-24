@@ -4,6 +4,14 @@ International draughts, on a 10 × 10 board, against the computer, in pixel art:
 
 *Version française : [README.md](README.md)*
 
+## Online (new in 1.4.0)
+
+A game of draughts against a friend, online, with a code; colours swap at each rematch.
+
+## Combinations (new in 1.3.0)
+
+91 winning shots to solve: a sacrifice forces the opponent to capture, then you sweep at least two pieces. Found by the game's engine and checked, from shortest to longest, with a hint.
+
 ## How to play
 
 - Click one of your pieces, then the destination square. Pieces that can move have small golden corners; possible squares are marked with a dot.

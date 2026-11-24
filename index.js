@@ -6,6 +6,9 @@ const HTML = `<div class="appWrap wide">
     <div class="gSide">
       <div class="row"><button class="btn main" id="dmNew">NOUVELLE PARTIE</button><button class="btn" id="dmUndo">ANNULER</button></div>
       <div class="row"><select class="f gSel" id="dmLevel"><option value="0">Débutant</option><option value="1">Facile</option><option value="2" selected>Moyen</option><option value="3">Difficile</option><option value="4">Expert</option><option value="5">Maître</option><option value="6">Grand maître</option></select><select class="f gSel" id="dmColor"><option value="w" selected>Je joue les blancs</option><option value="b">Je joue les noirs</option><option value="r">Couleur au hasard</option></select></div>
+      <div class="row"><select class="f gSel" id="dmMode"><option value="ia">Contre l'ordinateur</option><option value="net">À distance (par un code)</option></select></div>
+      <div id="dmNet" style="display:none"><div class="row"><button class="btn" id="dmHost">CRÉER UNE PARTIE</button></div><div class="row"><input class="f" id="dmCode" placeholder="CODE" maxlength="8" autocomplete="off" spellcheck="false" style="max-width:110px;text-transform:uppercase"><button class="btn" id="dmJoin">REJOINDRE</button></div><div class="hint" id="dmNetInfo"></div></div>
+      <div class="sysCard"><b>COMBINAISONS</b><div class="row"><button class="btn" id="dmPuz">UNE COMBINAISON</button><button class="btn" id="dmPuzHint">INDICE</button></div><div class="hint" id="dmPuzInfo"></div></div>
       <div class="sysCard"><b>PARTIE</b><div class="gStats" id="dmCount"></div></div>
       <div class="sysCard"><b>COUPS</b><div id="dmMoves" class="chMoves"></div></div>
       <div class="hint">Prise obligatoire : les pions qui doivent prendre clignotent en orange, les pièces qu'ils vont prendre en rouge.</div>
@@ -457,8 +460,45 @@ const DM_IMG = {w: dmPiece(DM_PAL.w, false), W: dmPiece(DM_PAL.w, true), b: dmPi
 const DIG = ['111101101101111', '010110010010111', '111001111100111', '111001111001111', '101101111001001', '111100111001111', '111100111101111', '111001001001001', '111101111101111', '111101111001111'];
 const tiny = (q, n, x, y, col) => { for (const ch of String(n)) { const b = DIG[+ch]; for (let k = 0; k < 15; k++) if (b[k] === '1') px(q, col, x + k % 3, y + Math.floor(k / 3)); x += 4; } };
 let dm = null, dmId = 0, dmHover = -1;
+// à distance : deux PC, une partie par un code (ctx.room, serveur NeoDex). L'hôte a les blancs (qui commencent) à la première partie, puis les couleurs
+// s'échangent à chaque revanche ; chaque coup part à l'autre ({t:'coup', p: cases de passage, n}) et n'est joué que s'il est permis et à son tour
+const net = {on: false, code: '', host: false, opp: '', oppId: '', next: 'w', pending: null};
+const netOn = () => net.on && !!net.opp;
+const netSay = t => { $('dmNetInfo').textContent = t; };
+// les combinaisons (« coups de dames ») : un sacrifice qui force chaque réponse adverse et rapporte au moins deux pièces, trouvées par le moteur du jeu
+// et vérifiées (aucun autre premier coup ne fait aussi bien) ; [damier, blancs au trait ?, les coups (cases de passage), pièces gagnées], des plus courtes aux plus longues
+const DM_PUZ = [["---b-b-b-bb---b----------b---b-------------b-----b------b----w-------w--------w--w-------ww-w-w-B-w-",1,"78.67 56.78 69.87",2],["---W---b-bb-b-----b--b----------------------------------w----b------------w-w----w-w---w--w-w---w---",0,"21.30 3.21 10.32",2],["-b-b-b-W-bb-b---b------b-b------b---B------b-----wb-b-----------------w---w--------w------w-w-------",0,"16.27 7.34 23.45",2],["-b-b-b---bb-b----------b-b-b----b----------------wb-b----------B-w----w------------w------w-w-------",1,"83.72 63.81 90.72",2],["-b-b-b-b-bb-b-b-b-b--------b-b--b-b---b-----------------w----------w-bw-----w-w--w-w-w-w-ww-w-w-w-w-",1,"56.47 38.56 67.45.23.41",2],["-----b---bb-b-----b--b-b-b-b-b--b--------b---b----w----------w-----w--w-w---w-w--w---w-w-ww---w-----",1,"61.52 41.63 72.54.36.14",2],["------------b----------------bb---w------b-w-----wb---w---------------w----------w-------ww---------",0,"50.61 70.52 41.63.45.23",2],["---b--------------b--b-b-b----b---b---w-----------w-B-----------------w--------------w----w---------",1,"38.29 52.96 29.7",2],["-b-b-b-b-bb-b-b------b---b-b--b-b---b-b-----------w---w-w-------------w---w------w-w-w-w-ww-w---w-w-",0,"32.41 50.32 21.43.65.47",2],["-b-----W---------------------------------b-b-b----b--------------w-w-w--w---w-w----w-w---ww-w-------",0,"45.56 7.52.30 56.74.96",2],["-b-b-b-b-bb-b---b-b--b---b-b-bb----------b---b----------b----w-----w-ww-w---w-w--w-w-w---ww-w-w-w-w-",1,"61.52 41.63 72.54.36.14",2],["-------b--b------------------b------b-b-------------w---w-w-------------------w--w---w----w-w-w-----",0,"38.47 56.38 29.47.69.87",2],["-------b--b-------------------w-----b--------------------------B-----------------w--------w-w-w-----",1,"81.72 63.81 90.72",2],["-b-b-b-b-b--b-b-b-b--b-b---b---------------b---b-b-------------w-w----w-----w-w--w-w-w-w-ww-w-w---w-",1,"65.56 47.65 76.54.32.10",2],["-b-b-b---bb-----b-b--b-b-b-b-bb---b---b-----------b-w-w-w-w------w------w-w-w----w-w-----ww-w-w-w-w-",0,"34.43 54.32.14.36 27.45.67.85.63.41",2],["------------b--------b-b---b-w--b-b-----------------w-w-w---------------w---w-w--------w--w-w-------",0,"34.43 52.34 23.45.67.85",2],["---------b--b--------b--------------------------------------------------b-----w--w---b-w--w---------",0,"85.96 81.63 96.52",2],["-b-b-b-b-bb---b----------b---b----b-b-b---------------w--------w-----ww-------w----w-----wB-w-w-----",1,"92.81 90.72 63.81",2],["-b-b-b-b-bb---b----------b---b----b-b-b------B------w----------------ww-------w----w-----w--w-w-----",1,"78.67 45.78 69.87",2],["---------b--------b--b-------------------w---W---b----w-w----------w-ww---w---w------w----w-w-w-w---",0,"18.27 45.18 9.27",2],["-b-b---b-b---------------b---bb------------b-------------------------ww------------------w--w---B-w-",1,"98.87 96.78 69.87",2],["-b-b-b-b-bb---b-b-b----b---b-bb---b-b----------b--w-----b------w-w---ww---w-w-w----w-w-w-ww-w-w---w-",1,"69.58 47.69 65.47.25.43",2],["-----b------------b----b--------b-----W--b---w----w----------w-------w--w-w-w-----------------------",0,"18.27 38.16 5.27",2],["---b-b-b-b--b-b-b-b--b---b---bb-b-b-b-------------b-w----------w-----ww---w---w----w-w-w-ww---w-w-w-",1,"52.41 30.52 63.41.23.45.27",2],["---b---b--------B----b--------b-------b-------------------w----w------w-----------------------------",1,"63.52 16.61 70.52",2],["-b-W-b-b-bb-----b-b----------bb-------b-------------------w------w-w-w--------w----w-w---ww-w---w-w-",0,"1.12 3.21 10.32",2],["-b-b-b-b-bb-b---b-b----b-b---bb---b-b-b-----------w-w---w-w----------w--------w--w-w-w-w-ww-w-w-w-w-",0,"34.43 52.34 23.45.67.49",2],["---------bb-------b--------b------b-b----------b----w-----b------w---ww---w------w-w--------------w-",1,"65.56 47.65 69.47.25.43",2],["-b-b-b-b-bb-b-b-b-b--b---b----b---b-b-b-----------w-w-b--------------ww-w-----w--w-w-w-w-ww-w-w-w-w-",1,"52.41 30.52 72.63",2],["----------b---b--------------b----b-b------b-b---bb---b-w----------w--w---w-w-----------------------",0,"49.58 67.49 45.67.85.63",2],["-b-b-b-b-bb-b-b-b-b--b-------bb-b-w---b--------b---------------w-w---ww-w--------w-w-w-w-ww-w-w-w-w-",0,"47.58 69.47 38.56.74.52",2],["---b--------b---W------b-----bb-----b-------------w---w---w-----------w----------w--------w-w-----w-",0,"30.41 50.32.14 3.25.7",2],["---b--------b-----------------b---b-b------------Ww---w---w-----------w----------w--------w-w-----w-",1,"58.47 36.58 49.67.23.1",2],["---b-b----b-b-b-b------b-b----b--------------W---bb-w-w------------w--------w----w-w-w-w-ww-w-w---w-",0,"23.32 45.1 14.23",2],["---b-b------b-b-b----b-b-b----b--------------W---bb-w-w------------w------w-w----w-w---w-ww-w-w---w-",0,"23.32 45.1 14.23",2],["---b---b-bb-b-b-b-b--b-b---b-bb---b-b------------bw----------w--------w-w-w-w-w----w-w-w--w-w-w-w-w-",1,"50.41 30.52 61.43.25.47",2],["-b-b-b-b-bb-b-b-b-b----b-b-b-b--b---b----------b----w--------w-w---w-ww-----w-w--w-----w-ww-w-w-w-w-",0,"47.56 67.45 36.54.72.50",2],["-b-b-b-b-bb---b---b------b----b------------b-b-w-b-------------w----------w-w-w--w-w-w-w-ww-w-w---w-",1,"47.38 49.27 63.54",2],["-b-b-----bb---b-b----b--------b-b---w------b-----b-----------w---w-w------w------w-w------w-w-w---w-",0,"43.52 61.43 32.54.76.58",2],["------------w---b----------b----------b------w---w-------------w-w---ww-------w----w---w-ww---w---w-",1,"45.36 27.45 49.27.5",3],["---------b------b-w----b-b-b--------b----w-b------w----------w-w-w-w--w--------------w------w-----w-",0,"23.32 41.23 43.54",3],["-b---b--------b-b-b--b-b---------------------b-b----------w----w-w---w--w-----w----w----------------",0,"45.56 58.36 56.74.92",3],["---b-----b----b-b------b-b------b---b-b-------------w-w---w--w-------w------w-w----B------w-----w---",1,"58.49 83.50 49.27.5",3],["-b-b-b----b---b---b--b-b---b--b------------w---w-----------------w-w-ww------------------w--w---w---",0,"23.34 43.25 14.36.58.76.54",3],["---------b--------b----b-b---------------b---b-b--b------------w-w-w-ww-w-w---w--w---w---w----w-----",1,"63.52 41.63 72.54.36.14.32",3],["-b-------bb-b-b--------b---w-bw-b-b--------------wb---w------w-------ww-w---w-w--w-w---w------w-w---",0,"32.41 30.52 34.43",3],["---------bw-----b--------b-----------------------w------b-w-----------w---w-w------------wB---w-----",1,"58.47 56.38 49.27.5",3],["-------b-b------b------b----------b-b-w--b-b------b-b---b------w------w-w-w--------w-w--------------",0,"56.65 74.56 52.74.92",3],["---------b--b-b------b---b-b----b-b---b-----------------w----------w----------w-----------B-w-----w-",1,"56.47 38.56 67.45.23.1",4],["-b-b-b-b-bb---b-b-b--b-----b-bb-b-b-----------------w-w-w------w-----w--w-w-w-w--w---w-w--w-w-w-w-w-",0,"32.43 54.32 21.43.61.83.65.47",4],["-b---b-b-bb---b------b--------b-b-b----------b---bb-w---w-w--w-w---w-ww-w-w---w----w------w---w-w-w-",1,"52.41 30.52 61.43.25.3",4],["-b---b-b--b-b-----b----------bb---b-b------------b---------------w-w----------w------B-w-ww---------",1,"78.69 85.58 69.47.25.43",4],["---------b--b----------b---b-b----b-b------b-b-b----------w------w-w-ww-------w--w-w---w--w---w-----",0,"45.56 67.45 34.56.74.92",4],["---b------------b------b-b-b-bw-b-b-b-b----b------w------------w-w-w-ww-------w----w---w-ww---w---w-",0,"43.54 65.43.21 23.32 21.43 34.52.74.92",2],["-b-b---b--w-----b-b--------b-b--b-----b------w-b-w-------------w-w----w-------w----w---w-ww---w-w-w-",1,"65.56 47.65 45.36 27.45 49.27.5",2],["-b-----b--w---b-b-b--------b-b--b-----b------w-b-w--w------------w----w-------w----w---w-ww---w-w-w-",1,"65.56 47.65 45.36 27.45 49.27.5.23.41",2],["---b-b-b-bb-b-b----------b---b--w-b--------------b-----------w---w---w--------w--w-------ww-w-w-B-w-",0,"34.43 32.54 49.58 69.47 96.69.36.72.50",2],["-b-b---b-b--b-b------b-b-b-b--b---b------b---b---bb-w---w-w--w-w---w--w-w-w-w------w-w-w-ww---w-----",1,"52.43 34.52 56.34.16.38 49.27 61.43",2],["-b-------bb---b-b------b-----bb-b-b-b-b-------------w-----w----w-w--------w-w-w------w---ww-w-w---w-",1,"52.43 32.54.72 74.63 72.54 65.43.25.3",2],["---b-W---b----b--------b-b------b---b-------------B-w-w--------------w------w-w-----------w-----w---",0,"32.41 52.30 23.32 5.23.41 50.32.65.87",2],["-b-b-b-b--------b----b-b-b-b-bb-------b----b-b---w--------w--w---w-w--w-w---w----w---w----w-w-w-w-w-",1,"67.56 45.67 85.74 67.85.63 72.54.32.14.36.18",2],["-----b-b-bb-------b----b------b---b---b----b--------w--------w-w---w----w----------w-w-w-ww-w-w-----",0,"43.54 63.45 34.56.78.96.74 83.65 5.14",2],["-----b---bb----------b-------b-----------b-------b-----------w-b---w-w-----------------w--w---w-w---",1,"67.58 49.67 87.76 67.85 96.74.52.30.12",2],["-b-b-b-b-bb-b----------b-b---bb------------b---w-------------w---w------w---w-w--------w-ww-w-w-w-w-",1,"47.38 29.47 65.56 47.65 76.54.32.14.36",2],["-b-b---b-bb-b---b------b-b---bb------------b---w-------------w---w------w---w-w----w---w-ww-w---w-w-",1,"47.38 29.47 65.56 47.65 76.54.32.14.36",2],["---b---b-bb-----b-b--b-------bb-b-----------------w---b-w-w--w--------w-w-w-w-w------w-w--w---------",0,"54.65 76.54 32.41 50.32 21.43.65.47.69",2],["-b-------W-----------b---b----b-b-b---------------w-w-w--------------w--w-----------------w---w-----",1,"52.41 30.52 54.43 32.54 9.63.30.12.45",2],["-b-------bb-b---b------b------w-b-b--------------wb-w-w---w----w------w-----w-w--w-w----------w-w---",1,"54.45 34.56 58.47 56.38 49.27.5",2],["-----b----b------------b-----b--b---b--------b---bb---b----------w-w--------w----w---w--------------",0,"32.41 65.43 41.52 43.61 50.72.90",2],["-b---b---bb-----b------b-b-b-bb---b-b--------b--------w-b-w--b-w---w-ww---w-w-w--------w-ww-w-w-----",0,"61.72 63.81 45.63.85 67.45 85.67.49",2],["-----b---b-------------b-w------------b----b-b----b--------------w-w--w----------w-w-----w------w---",0,"5.16 25.7 43.52 7.61 50.72.90",2],["-----b---b---------------w------b-----b----b-b----b--------------w-w--w-------w--w-w------------w---",0,"5.16 25.7 43.52 7.61 50.72.90",2],["-b-b-b-b-bb---b-b----b-b------b-b-b-b-b--------b----w-w-b----w--------w---w-w------w-w-w-ww-w-w-w-w-",1,"54.43 32.54 74.65 56.74 85.63.45.27.49",2],["-b-b-b---bb-b-b-b-b--b---b-b-bb-b-b------------w-bw-w-b---w--------w----w-w-w-w--w-w-w-w-ww-w---w-w-",1,"52.41 30.52 74.63 52.74 85.63.45.23.41",2],["-b-b-b----b-----b-b--------b-b------w------------ww-w-b-b------------ww-w---w------w-----w----w---w-",1,"69.58 27.45 58.47 56.38 49.27.9",2],["-b-b-b----b-----b-b--------b-b--b---w------------ww-----b------------ww-w---w------w-----w----w---w-",1,"69.58 27.45 58.47 56.38 49.27.9",2],["-b-b-b----b-----b-b--------b-b------w------------wb-----b------------ww-w---w------w-----w----w---w-",1,"69.58 27.45 58.47 56.38 49.27.9",2],["---------b------w---------------b---w------------------------w-w------w---b----------w---ww-w-------",1,"85.76 74.52 61.43.21 9.18 16.5",3],["---b---b--b-b-b-b-b--b-b-----b------b----w---b-b-b--w--------w---w---ww-------w--w-w-w---ww-----w-w-",0,"45.54 65.43 21.32 43.21 10.32.50.72.94.76",3],["-b---b-b-bb---b-b----------b-b----b-b-b------b-b--b-------w------w-w-ww-w-w-w-w--------w-w--w-w-w-w-",1,"72.61 50.72 74.63 72.54 65.43.25.3",3],["-b-b-b---bb---b-b------b---b-bb-b-b-b----------b----w-w---w--w-----w-ww----------w-w-w---w--w-w-w-w-",1,"54.43 32.54 52.41 30.52 61.43.25.7",3],["-b-b------------b-b--b-b-b-b----------b----------wb---b------b-------w----w---w--w--------------w---",1,"74.65 54.76 78.67 76.58 69.47.29.7",3],["---------b----b--------b---W-bb-b-b--------b------w------------w--------w-w----------w--------w-----",0,"34.45 27.54 43.65.83.61 50.72 9.18",3],["----------------b----b-b-b---bb-b---b--------b----w---w------w-w-w----w-w-w------w----------------w-",1,"65.56 45.67 54.43 32.54 63.45.27.5",3],["-b-b-b-b--b-----b-b------b-b-bb-----b----------b-b--------w----b---w-w--------w--w---w-w----w---w-w-",0,"63.74 85.63 47.56 67.45 36.54.72.90",3],["---b---b--b-b-b-b----b-b---b-b------b----w---b-b-b--w--------w---w---ww---w---w--w-w-----ww-----w-w-",0,"45.54 65.43 21.32 43.21 10.32.50.72.94",4],["-b-b---b-bb-b---b-b--b-b-b-b-b--b--------b---w--------w------w-----w--w-w-w------w-w-w-w-ww-w-w---w-",0,"41.52 61.43 25.34 43.25 16.34.56.78.96",4],["-b-b-----bb-b-b-b-b--b-----b--b-b-b-----------------w-b------------w--w-w-w-w-w--w-w-w----w-w-w-w-w-",1,"52.43 34.52 72.63 54.72 81.63.41.23.5",4],["---------b--------b--b-----b-b------b-b------b-b----w-----w------w-w-w----w---w------w-w-ww---------",0,"45.56 67.45 36.54.76.94 58.36 27.45",4],["-------W------b---------------b-b-----------------b-w----------w----------w-w------w---w--w-------w-",1,"52.41 30.52 63.41.23.5 50.61 7.70",4],["-------b-bb---b------b-b---b-wb-b-b--------b-b-w-b--w--------w-w-w-w--w-w-w-w-w--w-w---w-w----------",1,"65.54 43.65 76.54.36.18 9.27 52.41",5]];
+const dmPs = () => gstore('dames', {}).puz ??= {done: {}, ok: 0, ko: 0, streak: 0, best: 0};
+const dmLater = (fn, ms) => dmMute ? fn() : setTimeout(fn, ms);
+const dmPuzMv = (s, p) => DM.moves(s).find(m => m.path.join('.') === p);
+function dmPuzSet(n) {  // la position de la combinaison après ses n premiers coups
+  const pz = dm.puz, s0 = {b: [...DM_PUZ[pz.i][0].replace(/-/g, '.')], w: !!DM_PUZ[pz.i][1], k: 0};
+  Object.assign(dm, {s: s0, hist: [DM.key(s0)], moves: [], path: [], over: null, anim: null, thinking: false});
+  for (const p of pz.sol.slice(0, n)) dmApply(dmPuzMv(dm.s, p), true);
+  pz.k = n;
+}
+function dmPuzStart(i) {
+  const ps = dmPs(); if (i == null) { i = DM_PUZ.findIndex((_, k) => !ps.done[k]); if (i < 0) i = Math.floor(Math.random() * DM_PUZ.length); }
+  dmId++; dm = {s: null, hist: [], moves: [], level: dm?.level ?? +$('dmLevel').value, human: DM_PUZ[i][1] ? 'w' : 'b', path: [], over: null, anim: null, puz: {i, sol: DM_PUZ[i][2].split(' '), k: 0, fail: false, scored: false}};
+  dmPuzSet(0); dmRender();
+}
+function dmPuzScore(win) {
+  const pz = dm.puz, p = dmPs(); if (pz.scored) return; pz.scored = true;
+  if (win) { p.ok++; p.streak++; p.best = Math.max(p.best, p.streak); } else { p.ko++; p.streak = 0; }
+  saveGames();
+}
+function dmPuzMove(m) {  // ton coup : celui de la solution (ou la même rafle par un autre chemin), sinon on revient en arrière
+  const pz = dm.puz, want = pz.sol[pz.k].split('.').map(Number);
+  const good = m.path.join('.') === pz.sol[pz.k] || (m.path[0] === want[0] && m.path.at(-1) === want.at(-1) && m.caps.length > 0);
+  const wait = (m.path.length - 1) * SEG + 150;
+  if (!good) { pz.fail = true; dmPuzScore(false); toast('Pas ce coup-là : cherche encore', true);
+    const k = pz.k, i = pz.i; dmLater(() => { if (dm.puz?.i === i) { dmPuzSet(k); dmRender(); } }, wait + 500); return; }
+  pz.k++;
+  if (pz.k >= pz.sol.length) { dmPs().done[pz.i] = 1; if (!pz.fail) dmPuzScore(true); dm.over = {result: dm.human, why: 'combinaison réussie : ' + DM_PUZ[pz.i][3] + ' pièces de plus'}; saveGames(); dmLater(() => sfx('launch'), wait); return; }
+  const i = pz.i; dmLater(() => { if (dm.puz?.i === i && !dm.over) { const r = dmPuzMv(dm.s, pz.sol[pz.k]); pz.k++; dmApply(r); } }, Math.max(450, wait));
+}
 function dmReplay(save) {
-  dm = {s: DM.start(), hist: [], moves: [], level: save.level, human: save.human, path: [], over: null, anim: null};
+  dm = {s: DM.start(), hist: [], moves: [], level: save.level, human: save.human, path: [], over: null, anim: null, net: !!save.net};
   dm.hist.push(DM.key(dm.s));
   for (const p of save.moves) { const m = DM.moves(dm.s).find(x => x.path.join() === p.join()); if (!m) break; dmApply(m, true); }
 }
@@ -477,6 +517,12 @@ function dmApply(m, quiet) {
   if (quiet) return;
   // le pion glisse case par case ; les pièces prises disparaissent quand il passe dessus (les sons partent avec, dans dmDraw)
   dm.anim = {path: m.path, caps: m.caps, prev, pc, t0: performance.now(), played: 0, crown: pc !== dm.s.b[m.path.at(-1)]};
+  if (dm.net) {  // à distance : mon coup part à l'ami ; rien n'est gardé, les scores à part
+    if ((dm.s.w ? 'b' : 'w') === dm.human) ctx.room.send({t: 'coup', p: m.path, n: dm.moves.length - 1}).catch(e => toast(e.message, true));
+    if (dm.over) { const r = (gstore('dames', {}).net ??= {w: 0, l: 0, d: 0}), k = dm.over.result === 'd' ? 'd' : dm.over.result === dm.human ? 'w' : 'l'; r[k]++; setTimeout(() => sfx(k === 'w' ? 'launch' : k === 'l' ? 'error' : 'notify'), (m.path.length - 1) * SEG + 100); }
+    saveGames(); dmRender(); setTimeout(netTry, 0); return;
+  }
+  if (dm.puz) { if ((dm.s.w ? 'b' : 'w') === dm.human) dmPuzMove(m); dmRender(); return; }
   const st = gstore('dames', {});
   st.save = dm.over ? null : {level: dm.level, human: dm.human, moves: dm.moves.map(x => x.path)};
   if (dm.over) { const r = (st['lvl' + dm.level] ??= {w: 0, l: 0, d: 0}), k = dm.over.result === 'd' ? 'd' : dm.over.result === dm.human ? 'w' : 'l'; r[k]++; setTimeout(() => sfx(k === 'w' ? 'launch' : k === 'l' ? 'error' : 'notify'), (m.path.length - 1) * SEG + 100); }
@@ -495,6 +541,7 @@ damesWorker.onmessage = e => {
   if (m) dmApply(m);
 };
 function dmNew() {
+  if (net.on) { if (netOn()) netAgain(); return; }
   const c = $('dmColor').value, human = c === 'r' ? (Math.random() < .5 ? 'w' : 'b') : c;
   dmId++; dmReplay({level: +$('dmLevel').value, human, moves: []});
   gstore('dames', {}).save = {level: dm.level, human, moves: []}; saveGames();
@@ -517,7 +564,7 @@ function dmMarks() {
   return {must: new Set(all.map(m => m.path[0])), prey: new Set(cand.flatMap(m => m.caps))};
 }
 function dmClick(i) {
-  if (!dm || dm.over || dm.thinking || dm.anim || (dm.s.w ? 'w' : 'b') !== dm.human) return;
+  if (!dm || dm.over || dm.thinking || dm.anim || (dm.s.w ? 'w' : 'b') !== dm.human || dm.net && !netOn()) return;
   const all = DM.moves(dm.s);
   if (!dm.path.length || all.some(m => m.path[0] === i) && !dmCandidates().some(m => m.path[dm.path.length] === i)) {  // choisir une pièce
     dm.path = all.some(m => m.path[0] === i) ? [i] : [];
@@ -537,8 +584,12 @@ function dmClick(i) {
 }
 const dmXY = i => { const k = dm.human === 'b' ? 99 - i : i; return [BX + (k % 10) * SQ, BY + Math.floor(k / 10) * SQ]; };
 const dmState = () => { const o = dm.over, you = dm.human;
-  if (o) return o.result === 'd' ? 'Nulle' : o.result === you ? 'Tu as gagné !' : 'L\'ordinateur gagne';
+  if (o) return o.result === 'd' ? 'Nulle' : o.result === you ? 'Tu as gagné !' : dm.net ? 'Ton ami gagne' : 'L\'ordinateur gagne';
+  if (dm.puz && (dm.s.w ? 'w' : 'b') !== you) return 'L\'adversaire est forcé';
+  if (dm.net && !net.opp) return 'En attente de ton ami';
+  if (dm.net && (dm.s.w ? 'w' : 'b') !== you) return 'Ton ami joue';
   if ((dm.s.w ? 'w' : 'b') !== you) return 'L\'ordinateur réfléchit';
+  if (dm.puz && !(DM.moves(dm.s)[0]?.caps.length)) return 'Trouve le coup de dames';
   const c = DM.moves(dm.s)[0]?.caps.length || 0; return c ? 'Prise obligatoire : ' + c + (c > 1 ? ' pièces' : ' pièce') : 'À toi de jouer'; };
 function dmDraw() {
   if (!dm) return;
@@ -588,7 +639,7 @@ function dmDraw() {
     g.drawImage(DM_IMG[A.pc], Math.round(x0 + (x1 - x0) * t + 2), Math.round(y0 + (y1 - y0) * t + 2 - hop)); }
   // la fin de partie
   if (dm.over && !A) { const o = dm.over, win = o.result === dm.human;
-    gameText(g, W, [[o.result === 'd' ? 'NULLE' : win ? 'GAGNÉ !' : 'PERDU', o.result === 'd' ? '#c8e8ff' : win ? '#7ee07a' : '#ff4a5a', 16], [o.why, '#ffffff'], ['Nouvelle partie à droite', '#b8a8d8']], 120); }
+    gameText(g, W, [[o.result === 'd' ? 'NULLE' : win ? 'GAGNÉ !' : 'PERDU', o.result === 'd' ? '#c8e8ff' : win ? '#7ee07a' : '#ff4a5a', 16], [o.why, '#ffffff'], [dm.net ? (net.host ? 'Nouvelle partie : la revanche' : 'Nouvelle partie : demander une revanche') : 'Nouvelle partie à droite', '#b8a8d8']], 120); }
   if (Math.floor(now / 500) !== dmDraw.lab) { dmDraw.lab = Math.floor(now / 500); cv.setAttribute('aria-label', 'Dames : ' + st + (dm.over ? ', ' + dm.over.why : '')); }
 }
 function dmRender() {
@@ -598,6 +649,12 @@ function dmRender() {
   const ml = $('dmMoves'); ml.replaceChildren();
   for (let i = 0; i < dm.moves.length; i += 2) { const r = el('div', 'chMv'); r.append(el('span', 'n', (i / 2 + 1) + '.'), el('span', '', dm.moves[i].txt), el('span', '', dm.moves[i + 1]?.txt || '')); ml.append(r); }
   ml.scrollTop = ml.scrollHeight;
+  const ps = dmPs(), nd = Object.keys(ps.done).length;
+  $('dmPuzInfo').textContent = nd + (nd > 1 ? ' résolues' : ' résolue') + ' sur ' + DM_PUZ.length + ' · série ' + ps.streak + ' (record ' + ps.best + '). On sacrifie un pion pour forcer l’adversaire à prendre, puis on rafle.';
+  $('dmPuzHint').disabled = !dm.puz || !!dm.over;
+  $('dmMode').value = net.on ? 'net' : 'ia'; $('dmNet').style.display = net.on ? '' : 'none';
+  if (dm.net) { const r = games.dames?.net || {w: 0, l: 0, d: 0}; $('dmInfo').textContent = 'À distance · ' + (dm.human === 'w' ? 'tu as les blancs' : 'tu as les noirs') + ' · ' + r.w + ' victoires, ' + r.d + ' nulles, ' + r.l + ' défaites'; $('dmUndo').disabled = true; return; }
+  if (dm.puz) { const P = DM_PUZ[dm.puz.i], n = (P[2].split(' ').length + 1) / 2; $('dmInfo').textContent = 'Combinaison ' + (dm.puz.i + 1) + ' / ' + DM_PUZ.length + ' · en ' + n + ' coups · ' + (dm.human === 'w' ? 'les blancs' : 'les noirs') + ' jouent'; $('dmUndo').disabled = true; return; }
   const st = games.dames?.['lvl' + dm.level] || {w: 0, l: 0, d: 0};
   $('dmInfo').textContent = 'Niveau ' + $('dmLevel').options[dm.level].text + ' · ' + st.w + ' victoires, ' + st.d + ' nulles, ' + st.l + ' défaites';
   $('dmUndo').disabled = dm.moves.length < (dm.human === 'w' ? 1 : 2) || dm.thinking;
@@ -608,6 +665,42 @@ cv.onclick = e => { const i = dmAt(e); if (i >= 0) dmClick(i); };
 cv.onpointermove = e => { dmHover = dmAt(e); };
 cv.onpointerleave = () => { dmHover = -1; };
 $('dmNew').onclick = () => { $('dmNew').blur(); dmNew(); };
+$('dmPuz').onclick = () => { $('dmPuz').blur(); if (net.on) { netLeave(); net.on = false; } dmPuzStart(); };
+const netLeave = () => { if (net.code) try { ctx.room.leave().catch(() => {}); } catch {} Object.assign(net, {code: '', host: false, opp: '', oppId: '', next: 'w', pending: null}); };
+function netTry() { const m = net.pending; if (!m || !dm?.net || dm.over || dm.anim || (dm.s.w ? 'w' : 'b') === dm.human) return; net.pending = null; if (m.n !== dm.moves.length) return; const mv = DM.moves(dm.s).find(x => x.path.join() === m.p.join()); if (mv) dmApply(mv); }
+function netStart(me) { dmId++; net.pending = null; dmReplay({level: 0, human: me, moves: [], net: true}); dmRender(); netSay('Contre ' + net.opp + ' · ' + (me === 'w' ? 'tu as les blancs, tu commences' : 'tu as les noirs') + ' · code ' + net.code); }
+function netWait() { dmId++; dmReplay({level: 0, human: 'w', moves: [], net: true}); dmRender(); }
+function netAgain() { if (!netOn()) return; if (net.host) { const me = net.next; net.next = me === 'w' ? 'b' : 'w'; ctx.room.send({t: 'start', you: me === 'w' ? 'b' : 'w'}).catch(() => {}); netStart(me); } else ctx.room.send({t: 'rejouer'}).catch(() => {}); }
+setInterval(() => { if (net.pending) netTry(); }, 200);  // le coup de l'ami arrivé pendant que mon pion glissait encore
+ctx.room?.on(ev => {
+  if (!net.on || !net.code) return;
+  if (ev.t === 'arrive') {
+    if (!net.host) return;
+    if (net.opp) return void ctx.room.send({t: 'pleine'}, ev.id).catch(() => {});
+    net.opp = ev.name || 'ton ami'; net.oppId = ev.id; sfx?.('notify'); netAgain();
+  } else if (ev.t === 'part' && ev.id === net.oppId || ev.t === 'fin') {
+    netSay(ev.t === 'fin' ? 'Connexion perdue avec le serveur de parties.' : 'Ton ami a quitté la partie.' + (net.host ? ' Le code reste valable : il peut revenir.' : ''));
+    net.opp = ''; net.oppId = ''; if (ev.t === 'fin') net.code = ''; netWait();
+  } else if (ev.t === 'msg' && ev.from === net.oppId) {
+    const m = ev.data || {};
+    if (m.t === 'start' && !net.host) netStart(m.you === 'b' ? 'b' : 'w');
+    else if (m.t === 'rejouer' && net.host && dm.over) netAgain();
+    else if (m.t === 'pleine') { netSay('Cette partie a déjà deux joueurs.'); netLeave(); }
+    else if (m.t === 'coup' && Array.isArray(m.p) && m.p.length >= 2 && m.p.length <= 30 && m.p.every(Number.isInteger) && Number.isInteger(m.n)) { net.pending = m; netTry(); }
+  }
+});
+$('dmMode').onchange = () => { $('dmMode').blur(); netLeave(); net.on = $('dmMode').value === 'net';
+  if (net.on) { netWait(); netSay('Crée une partie et donne son code à ton ami, ou tape le sien.'); } else { dm = null; dmOpen(); } };
+$('dmHost').onclick = async () => { $('dmHost').blur();
+  try { netLeave(); const r = await ctx.room.create('hôte'); Object.assign(net, {code: r.code, host: true}); netWait(); netSay('Code de la partie : ' + r.code + ' · donne-le à ton ami. En attente…'); }
+  catch (e) { netSay('Impossible de créer la partie : ' + e.message); } };
+$('dmJoin').onclick = async () => { $('dmJoin').blur();
+  try { netLeave(); const r = await ctx.room.join($('dmCode').value, 'invité'), host = r.joueurs.find(j => j.host);
+    if (!host || r.joueurs.length > 1) { await ctx.room.leave(); return netSay(host ? 'Cette partie a déjà deux joueurs.' : 'Aucune partie avec ce code.'); }
+    Object.assign(net, {code: r.code, host: false, opp: host.name || 'ton ami', oppId: host.id}); netSay('Connecté · la partie commence…'); }
+  catch (e) { netSay('Impossible de rejoindre : ' + e.message); } };
+$('dmCode').onkeydown = e => { if (e.key === 'Enter') $('dmJoin').click(); };
+$('dmPuzHint').onclick = () => { $('dmPuzHint').blur(); const pz = dm.puz; if (!pz || dm.over || dm.anim || (dm.s.w ? 'w' : 'b') !== dm.human) return; pz.fail = true; dmPuzScore(false); dm.path = [+pz.sol[pz.k].split('.')[0]]; dmToc(); dmRender(); };  // l’indice choisit le pion à jouer, mais la combinaison compte comme ratée
 $('dmColor').onchange = dmNew;
 $('dmLevel').onchange = () => { if (!dm || dm.moves.length < 2 || dm.over) return dmNew(); dm.level = +$('dmLevel').value; games.dames.save.level = dm.level; saveGames(); dmRender(); };
 $('dmUndo').onclick = () => {
@@ -628,13 +721,22 @@ function dmCheck() {
     dm.path = [65]; if ([...dmMarks().prey].length !== 2) bad.push('marques après le choix');
     dm.path = []; dmDraw();
     const m = DM.make(dm.s, ms[0]); if (m.b[54] !== '.' || m.b[34] !== '.' || m.b[25] !== 'w' || m.b[65] !== '.') bad.push('la rafle jouée');
+    DM_PUZ.forEach(([b, w, sol], i) => { let st = {b: [...b.replace(/-/g, '.')], w: !!w, k: 0}; sol.split(' ').forEach((p, k) => { const m = dmPuzMv(st, p); if (!m || (k % 2 && DM.moves(st).length !== 1) || (!k && m.caps.length)) bad.push('combinaison ' + (i + 1) + ' coup ' + k); else st = DM.make(st, m); }); });
+    if (DM_PUZ.length < 60) bad.push('liste des combinaisons');
+    const kp = JSON.stringify(games.dames?.puz ?? null), ks = JSON.stringify(games.dames?.save ?? null);
+    const pi = DM_PUZ.findIndex(x => x[2].split(' ').length >= 5); dmPuzStart(pi); const pz = dm.puz;
+    const wrong = DM.moves(dm.s).find(m => m.path.join('.') !== pz.sol[0]); dmApply(wrong); if (pz.k !== 0 || dm.moves.length || !pz.fail) bad.push('combinaison : faux coup');
+    while (!dm.over && pz.k < pz.sol.length) dmApply(dmPuzMv(dm.s, pz.sol[pz.k]));
+    if (!/^combinaison réussie/.test(dm.over?.why || '')) bad.push('combinaison : fin ' + pz.k + '/' + pz.sol.length + ' ' + JSON.stringify(dm.over));
+    if (JSON.stringify(games.dames?.save ?? null) !== ks) bad.push('combinaison : partie gardée touchée');
+    if (games.dames) { if (kp === 'null') delete games.dames.puz; else games.dames.puz = JSON.parse(kp); }
     const p = Array(100).fill('.'); p[12] = 'w'; const k = DM.make({b: p, w: true, k: 0}, DM.moves({b: p, w: true, k: 0})[0]); if (!k.b.includes('W')) bad.push('dame au dernier rang');
   } catch (e) { bad.push('erreur ' + e.message); }
   dm = keep; dmMute = false;
   return bad.length ? bad.join(', ') : 'ok';
 }
 { const c = dmCheck(); console.assert(c === 'ok', 'dames', c); }
-cv.__dm = {st: () => dm, check: dmCheck, moves: () => DM.moves(dm.s), xy: dmXY, SQ, W, H, marks: dmMarks,
+cv.__dm = {st: () => dm, check: dmCheck, net: () => net, puz: i => dmPuzStart(i), P: DM_PUZ, moves: () => DM.moves(dm.s), xy: dmXY, SQ, W, H, marks: dmMarks,
   setPos: (b, w) => { dmId++; dm.s = {b, w, k: 0}; dm.hist = [DM.key(dm.s)]; dm.path = []; dm.over = null; dm.anim = null; dm.thinking = false; dmRender(); }};
 const loop = () => { if (!view.classList.contains('on')) { loop.raf = 0; return; } loop.raf = requestAnimationFrame(loop); dmDraw(); };
   ctx.onOpen(() => { dmOpen(); if (!loop.raf) loop.raf = requestAnimationFrame(loop); });

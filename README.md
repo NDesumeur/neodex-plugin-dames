@@ -4,6 +4,14 @@ Le jeu de dames international, sur un damier de 10 × 10, contre l'ordinateur, e
 
 *English version: [README.en.md](README.en.md)*
 
+## À distance (nouveau en 1.4.0)
+
+Une partie de dames contre un ami, à distance, grâce à un code ; les couleurs s'échangent à chaque revanche.
+
+## Combinaisons (nouveau en 1.3.0)
+
+91 coups de dames à résoudre : un sacrifice force l'adversaire à prendre, puis on rafle au moins deux pièces. Trouvés par le moteur du jeu et vérifiés, des plus courts aux plus longs, avec un indice.
+
 ## Comment jouer
 
 - Clique un de tes pions, puis la case d'arrivée. Les pions qui peuvent jouer ont de petits coins dorés ; les cases possibles sont marquées d'un point.
