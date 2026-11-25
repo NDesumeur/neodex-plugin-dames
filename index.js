@@ -309,6 +309,9 @@ export default async function (ctx) {
   let gamesTimer = null;
   const saveGames = () => { clearTimeout(gamesTimer); gamesTimer = setTimeout(() => { gamesTimer = null; folder.write('games', games).catch(() => {}); }, 500); };
   const gstore = (k, init) => (games[k] ??= init);
+  // les trophées de NeoDex (3.4.8 et plus) : succès et records déclarés dans plugin.json ; sur un NeoDex plus ancien, rien ne se passe
+  const trophy = id => { ctx.games?.unlock(id).catch(() => {}); };
+  const trophyRecord = (id, v) => { if (v != null && Number.isFinite(+v)) ctx.games?.record(id, +v).catch(() => {}); };
 function gameText(g, w, lines, y0) {  // lignes centrées en police pixel, sur une bande sombre
   g.fillStyle = 'rgba(11,3,28,.8)'; g.fillRect(0, y0 - 18, w, lines.length * 16 + 16);
   lines.forEach(([text, color, size], i) => PXK.fill(g, text, w / 2, y0 + i * 16 + (size > 8 ? 4 : 0), color, PXK.scale(size), 'center'));
@@ -485,7 +488,7 @@ function dmPuzStart(i) {
 function dmPuzScore(win) {
   const pz = dm.puz, p = dmPs(); if (pz.scored) return; pz.scored = true;
   if (win) { p.ok++; p.streak++; p.best = Math.max(p.best, p.streak); } else { p.ko++; p.streak = 0; }
-  saveGames();
+  saveGames(); dmTrophies();
 }
 function dmPuzMove(m) {  // ton coup : celui de la solution (ou la même rafle par un autre chemin), sinon on revient en arrière
   const pz = dm.puz, want = pz.sol[pz.k].split('.').map(Number);
@@ -494,7 +497,7 @@ function dmPuzMove(m) {  // ton coup : celui de la solution (ou la même rafle p
   if (!good) { pz.fail = true; dmPuzScore(false); toast('Pas ce coup-là : cherche encore', true);
     const k = pz.k, i = pz.i; dmLater(() => { if (dm.puz?.i === i) { dmPuzSet(k); dmRender(); } }, wait + 500); return; }
   pz.k++;
-  if (pz.k >= pz.sol.length) { dmPs().done[pz.i] = 1; if (!pz.fail) dmPuzScore(true); dm.over = {result: dm.human, why: 'combinaison réussie : ' + DM_PUZ[pz.i][3] + ' pièces de plus'}; saveGames(); dmLater(() => sfx('launch'), wait); return; }
+  if (pz.k >= pz.sol.length) { dmPs().done[pz.i] = 1; if (!pz.fail) dmPuzScore(true); dmTrophies(); dm.over = {result: dm.human, why: 'combinaison réussie : ' + DM_PUZ[pz.i][3] + ' pièces de plus'}; saveGames(); dmLater(() => sfx('launch'), wait); return; }
   const i = pz.i; dmLater(() => { if (dm.puz?.i === i && !dm.over) { const r = dmPuzMv(dm.s, pz.sol[pz.k]); pz.k++; dmApply(r); } }, Math.max(450, wait));
 }
 function dmReplay(save) {
@@ -520,13 +523,13 @@ function dmApply(m, quiet) {
   if (dm.net) {  // à distance : mon coup part à l'ami ; rien n'est gardé, les scores à part
     if ((dm.s.w ? 'b' : 'w') === dm.human) ctx.room.send({t: 'coup', p: m.path, n: dm.moves.length - 1}).catch(e => toast(e.message, true));
     if (dm.over) { const r = (gstore('dames', {}).net ??= {w: 0, l: 0, d: 0}), k = dm.over.result === 'd' ? 'd' : dm.over.result === dm.human ? 'w' : 'l'; r[k]++; setTimeout(() => sfx(k === 'w' ? 'launch' : k === 'l' ? 'error' : 'notify'), (m.path.length - 1) * SEG + 100); }
-    saveGames(); dmRender(); setTimeout(netTry, 0); return;
+    saveGames(); dmRender(); dmTrophies(); setTimeout(netTry, 0); return;
   }
   if (dm.puz) { if ((dm.s.w ? 'b' : 'w') === dm.human) dmPuzMove(m); dmRender(); return; }
   const st = gstore('dames', {});
   st.save = dm.over ? null : {level: dm.level, human: dm.human, moves: dm.moves.map(x => x.path)};
   if (dm.over) { const r = (st['lvl' + dm.level] ??= {w: 0, l: 0, d: 0}), k = dm.over.result === 'd' ? 'd' : dm.over.result === dm.human ? 'w' : 'l'; r[k]++; setTimeout(() => sfx(k === 'w' ? 'launch' : k === 'l' ? 'error' : 'notify'), (m.path.length - 1) * SEG + 100); }
-  saveGames(); dmRender();
+  saveGames(); dmRender(); if (dm.over) dmTrophies();
   if (!dm.over && (dm.s.w ? 'w' : 'b') !== dm.human) dmThink(Math.max(300, (m.path.length - 1) * SEG + 150));
 }
 function dmThink(wait = 300) {
@@ -739,5 +742,13 @@ function dmCheck() {
 cv.__dm = {st: () => dm, check: dmCheck, net: () => net, puz: i => dmPuzStart(i), P: DM_PUZ, moves: () => DM.moves(dm.s), xy: dmXY, SQ, W, H, marks: dmMarks,
   setPos: (b, w) => { dmId++; dm.s = {b, w, k: 0}; dm.hist = [DM.key(dm.s)]; dm.path = []; dm.over = null; dm.anim = null; dm.thinking = false; dmRender(); }};
 const loop = () => { if (!view.classList.contains('on')) { loop.raf = 0; return; } loop.raf = requestAnimationFrame(loop); dmDraw(); };
-  ctx.onOpen(() => { dmOpen(); if (!loop.raf) loop.raf = requestAnimationFrame(loop); });
+  // les trophées, tirés des statistiques et des records gardés (aussi à l'ouverture : ce qui a été fait avant compte)
+  function dmTrophies() {
+    const st = games.dames || {}, p = st.puz || {}, w = i => st['lvl' + i]?.w > 0, any = k => Object.keys(st).some(x => (x.startsWith('lvl') || x === 'net') && st[x]?.[k] > 0);
+    trophyRecord('serie', p.best || null); trophyRecord('reussies', p.ok || null);
+    if (w(0) || w(1)) trophy('debutant'); if (w(2)) trophy('moyen'); if (w(3)) trophy('difficile'); if (w(4)) trophy('expert'); if (w(5)) trophy('maitre'); if (w(6)) trophy('grand-maitre');
+    if (p.ok >= 1) trophy('combinaison'); if (p.ok >= 25) trophy('combinaisons25'); if (p.best >= 10) trophy('serie10');
+    if (DM_PUZ.every((_, k) => p.done?.[k])) trophy('toutes'); if (st.net?.w) trophy('net'); if (any('d')) trophy('nul');
+  }
+  ctx.onOpen(() => { dmOpen(); if (!loop.raf) loop.raf = requestAnimationFrame(loop); dmTrophies(); });
 }

@@ -1,7 +1,7 @@
 {
   "id": "neodex.dames",
   "name": "Dames",
-  "version": "1.4.0",
+  "version": "1.5.0",
   "author": "NDesumeur",
   "description": "Le jeu de dames international (10 × 10) contre l'ordinateur, en pixel art : damier en bois, pions et dames en relief qui glissent et bondissent, avec leurs sons. Les vraies règles : prise obligatoire en avant comme en arrière (les pions qui doivent prendre et leurs proies sont marqués), rafle la plus longue, dames qui filent sur toute la diagonale, nulles par répétition. Sept niveaux du débutant au grand maître, coup annulable, notation officielle des coups, statistiques par niveau, et la partie en cours reprise même sur un autre PC. 91 combinaisons (coups de dames) à résoudre. À distance contre un ami, par un code.",
   "icon": "icon.png",
@@ -23,5 +23,82 @@
   "permissions": [
     "storage",
     "rooms"
+  ],
+  "succes": [
+    {
+      "id": "debutant",
+      "nom": "Première victoire",
+      "texte": "Battre NeoDex en Débutant"
+    },
+    {
+      "id": "moyen",
+      "nom": "Joueur averti",
+      "texte": "Battre NeoDex en Moyen"
+    },
+    {
+      "id": "difficile",
+      "nom": "Fin tacticien",
+      "texte": "Battre NeoDex en Difficile"
+    },
+    {
+      "id": "expert",
+      "nom": "Expert du damier",
+      "texte": "Battre NeoDex en Expert"
+    },
+    {
+      "id": "maitre",
+      "nom": "Maître",
+      "texte": "Battre NeoDex en Maître"
+    },
+    {
+      "id": "grand-maitre",
+      "nom": "Grand maître",
+      "texte": "Battre NeoDex en Grand maître",
+      "cache": true
+    },
+    {
+      "id": "combinaison",
+      "nom": "Le coup juste",
+      "texte": "Réussir une combinaison du premier coup"
+    },
+    {
+      "id": "combinaisons25",
+      "nom": "Rafleur",
+      "texte": "Réussir 25 combinaisons"
+    },
+    {
+      "id": "serie10",
+      "nom": "Sans faute",
+      "texte": "Réussir 10 combinaisons de suite"
+    },
+    {
+      "id": "toutes",
+      "nom": "Toutes les combinaisons",
+      "texte": "Trouver chaque combinaison au moins une fois"
+    },
+    {
+      "id": "net",
+      "nom": "Partie d'amis",
+      "texte": "Gagner une partie en ligne"
+    },
+    {
+      "id": "nul",
+      "nom": "Personne ne gagne",
+      "texte": "Finir une partie sur un match nul"
+    }
+  ],
+  "records": [
+    {
+      "id": "serie",
+      "nom": "Plus longue série de combinaisons",
+      "sens": "haut",
+      "format": "nombre"
+    },
+    {
+      "id": "reussies",
+      "nom": "Combinaisons réussies",
+      "sens": "haut",
+      "format": "nombre"
+    }
   ]
 }
